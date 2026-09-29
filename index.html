@@ -1,0 +1,1017 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Keel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Layout concept: one deck of oversized cards on a bone-white desk. Chrome is a slim header and a dock. Each card is a grid of head + body that turns into two columns when the card is wide and short. */
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --ground:#F2F0EB; --paper:#FBFAF7; --ink:#101318; --ink-2:#454B57; --ink-3:#5A616E;
+  --cobalt:#2F4BFF; --cobalt-d:#2338D6; --tang:#FF7A45;
+  --t1:#E4E8F7; --t2:#F6E3D8; --t3:#E3EDE6; --t4:#ECE6F4;
+  --line:rgba(16,19,24,.14);
+  --f:'Geist',system-ui,-apple-system,'Segoe UI','Helvetica Neue',Arial,sans-serif;
+  --m:'Geist Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+html,body{margin:0}
+[hidden]{display:none!important}
+html.dk,html.dk body{height:100%;overflow:hidden}
+body{
+  background-color:var(--ground);
+  background-image:radial-gradient(rgba(16,19,24,.075) 1px,transparent 1.3px);
+  background-size:22px 22px;
+  color:var(--ink);font-family:var(--f);font-size:16px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.n{font-family:var(--m);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:3px solid var(--cobalt);outline-offset:3px;border-radius:6px}
+.card:focus{outline:none}
+
+/* ---------- app frame ---------- */
+.app{display:flex;flex-direction:column;min-height:100%;padding-inline:16px}
+.dk .app{height:100%}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;height:52px;flex:none}
+.brand{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:20px;letter-spacing:-.045em;color:var(--ink);text-decoration:none;border:0;background:none;padding:0}
+.brand svg{width:22px;height:22px;color:var(--cobalt)}
+.hint{margin:0;font-family:var(--m);font-size:12px;color:var(--ink-3);text-align:center}
+.top-r{display:flex;align-items:center;gap:14px}
+.count{font-size:15px;font-weight:500;margin:0;white-space:nowrap}
+.lnk{white-space:nowrap;background:none;border:0;padding:6px 0;font-size:13px;font-weight:500;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line)}
+.lnk:hover{color:var(--ink)}
+
+.stage{flex:1;min-height:0;display:grid;place-items:center;padding:2px 0 40px}
+.dk .deck{position:relative;width:min(100%,720px);height:100%;max-height:720px}
+.deck{display:flex;flex-direction:column;gap:22px;width:min(100%,720px);margin-inline:auto}
+
+.dock{flex:none;padding-bottom:6px;display:flex;flex-direction:column;align-items:center;gap:6px}
+.ctrl{display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.dots{display:flex;align-items:center}
+.dot{width:21px;height:36px;padding:0;border:0;background:none;position:relative}
+.dot::after{content:"";position:absolute;left:50%;top:50%;width:7px;height:7px;border-radius:50%;background:var(--ink);opacity:.22;transform:translate(-50%,-50%);transition:width .25s cubic-bezier(.3,1.4,.5,1),opacity .2s,background .2s,border-radius .25s}
+.dot:hover::after{opacity:.5}
+.dot[aria-current="true"]::after{width:17px;border-radius:4px;background:var(--cobalt);opacity:1}
+.nb{height:44px;min-width:44px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;font-size:15px;padding:0 16px;border:1.5px solid var(--ink);background:transparent;color:var(--ink);transition:transform .15s,background .15s}
+.nb svg{width:18px;height:18px;flex:none}
+.nb:active{transform:scale(.96)}
+.nb.pri{background:var(--cobalt);border-color:var(--cobalt);color:#fff;padding:0 20px 0 22px}
+.nb.pri:hover{background:var(--cobalt-d)}
+.nb[aria-disabled="true"]{opacity:.35;pointer-events:none}
+.credit{margin:0;font-family:var(--m);font-size:11px;color:var(--ink-3);text-align:center;line-height:1.3}
+.flat .dock .ctrl{display:none}
+.flat .stage{display:block;padding:8px 0 28px}
+.flat .hint{display:none}
+
+/* ---------- card shell ---------- */
+.card{--tint:var(--t1);position:relative;background:var(--tint);border-radius:28px;border:1px solid var(--line);
+  box-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 26px 44px -22px rgba(16,19,24,.34),0 3px 8px rgba(16,19,24,.08);
+  container:card/inline-size;min-height:520px}
+.c1{--tint:var(--t1)}.c2{--tint:var(--t2)}.c3{--tint:var(--t3)}.c4{--tint:var(--t4)}
+.c5{--tint:var(--t1)}.c6{--tint:var(--t2)}.c7{--tint:var(--t3)}.c8{--tint:var(--t4)}
+.c9{--tint:var(--cobalt);color:#fff;border-color:rgba(0,0,0,.2)}
+.dk .card{position:absolute;inset:0;min-height:0;container:card/size;transform-origin:50% 100%;
+  transition:transform .55s cubic-bezier(.2,.85,.3,1.18),opacity .3s;will-change:transform;touch-action:pan-y;cursor:grab;
+  user-select:none;-webkit-user-select:none}
+.dk .card[data-pos="0"]{z-index:50}
+.dk .card[data-pos="1"]{z-index:40;transform:translateY(17px) scale(.95) rotate(-1.6deg)}
+.dk .card[data-pos="2"]{z-index:30;transform:translateY(32px) scale(.9) rotate(1.4deg)}
+.dk .card[data-pos="far"]{z-index:20;transform:translateY(38px) scale(.86);opacity:0;pointer-events:none}
+.dk .card[data-pos="gone"]{visibility:hidden;pointer-events:none;transition:none}
+.dk .card[data-pos="out"]{z-index:60;pointer-events:none}
+.dk .card[data-pos="in"]{z-index:70}
+.dk .card.live{transition:none}
+.dk .card.drag{cursor:grabbing}
+.dk .card[data-pos="1"] .face,.dk .card[data-pos="2"] .face{opacity:.0}
+.dk .card[data-pos="1"],.dk .card[data-pos="2"]{cursor:default}
+
+.face{--pad:20px;position:relative;display:grid;grid-template-rows:auto minmax(0,1fr);gap:16px;padding:var(--pad);
+  border-radius:inherit;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;min-height:100%;scrollbar-width:none}
+.face::-webkit-scrollbar{display:none}
+.dk .face{position:absolute;inset:0;min-height:0;transition:opacity .3s}
+.dk .card[data-pos="0"] .face,.dk .card[data-pos="out"] .face,.dk .card[data-pos="in"] .face{opacity:1}
+.head{display:flex;flex-direction:column;gap:9px;align-self:start;min-width:0}
+.body{min-height:0;min-width:0;display:flex;flex-direction:column;gap:12px;container:body/inline-size}
+.body>.fill{flex:1;min-height:0}
+.kick{margin:0;display:flex;align-items:center;gap:8px;font-family:var(--m);font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.kick::before{content:"";width:8px;height:8px;background:var(--cobalt);border-radius:2px;flex:none}
+.c9 .kick{color:rgba(255,255,255,.82)}.c9 .kick::before{background:var(--tang)}
+h1,h2{margin:0;font-weight:600;letter-spacing:-.04em;line-height:1.02;text-wrap:balance}
+h2{font-size:28px}
+.lede{margin:0;font-size:15px;line-height:1.42;color:var(--ink-2);max-width:36ch;text-wrap:pretty}
+.c9 .lede{color:rgba(255,255,255,.9)}
+.fine{margin:0;font-family:var(--m);font-size:11px;line-height:1.4;color:var(--ink-3)}
+.c9 .fine{color:rgba(255,255,255,.8)}
+.vfy{font-family:var(--m);font-size:.82em;background:rgba(16,19,24,.07);padding:1px 6px;border-radius:5px;white-space:normal}
+
+@container card (min-width:520px){
+  .face{--pad:32px;gap:22px}
+  h2{font-size:42px}
+  .lede{font-size:17px}
+  .head{gap:12px}
+}
+@container card (min-aspect-ratio:13/10){
+  .face{grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr);grid-template-rows:minmax(0,1fr);align-items:center;column-gap:28px}
+  .head{align-self:center}
+  .body{height:100%}
+}
+@container card (max-height:430px){
+  .face{--pad:16px;gap:10px}
+  h2{font-size:25px}
+  .lede{font-size:13.5px}
+  .head{gap:7px}
+}
+@container card (max-height:560px) and (max-aspect-ratio:13/10){
+  h2{font-size:24px}
+  .lede{font-size:14px}
+}
+@container card (max-width:340px){
+  .face{--pad:16px;gap:12px}
+  h2{font-size:24px}
+}
+
+/* ---------- buttons and forms ---------- */
+.btn{height:50px;border-radius:999px;border:0;background:var(--cobalt);color:#fff;font-weight:600;font-size:15px;padding:0 24px;white-space:nowrap;transition:transform .15s,background .15s}
+.btn:hover{background:var(--cobalt-d)}
+.btn:active{transform:scale(.97)}
+.btn.tang{background:var(--tang);color:var(--ink)}
+.btn.tang:hover{background:#ff8c5f}
+.ghost{background:transparent;border:1.5px solid currentColor;color:inherit;height:38px;font-size:13px;padding:0 16px;border-radius:999px;font-weight:600}
+.lab{display:block;font-family:var(--m);font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-bottom:7px}
+.c9 .lab{color:rgba(255,255,255,.85)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row input{flex:1 1 180px;min-width:0;height:50px;border-radius:999px;border:1.5px solid var(--ink);background:var(--paper);padding:0 20px;font-size:16px}
+.row input::placeholder{color:#6B717D}
+.row input[aria-invalid="true"]{border-color:#B3261E;box-shadow:0 0 0 3px rgba(179,38,30,.18)}
+.c9 .row input{border-color:#fff;background:#fff;color:var(--ink)}
+.c9 :focus-visible{outline-color:#fff}
+.msg{margin:6px 2px 0;min-height:1.3em;font-size:13px;font-weight:500;color:var(--ink-2)}
+.msg.err{color:#A3231B}
+.c9 .msg.err{color:#fff;background:rgba(0,0,0,.28);padding:2px 8px;border-radius:6px;display:inline-block}
+.wrap-join{display:flex;flex-direction:column;gap:6px;width:100%}
+.thanks{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:16px 18px;border-radius:20px;background:var(--paper);border:1.5px solid var(--ink);color:var(--ink)}
+.thanks strong{font-size:20px;letter-spacing:-.03em;line-height:1.1}
+.thanks p{margin:0;font-size:14px;color:var(--ink-2)}
+.thanks .lnk{padding:2px 0}
+
+/* card 1 */
+.word{display:flex;align-items:center;gap:.12em;font-size:82px;font-weight:700;letter-spacing:-.075em;line-height:.9;margin:2px 0 2px -.02em}
+.word svg{width:.62em;height:.62em;color:var(--cobalt);flex:none;margin-top:.04em}
+.tag{margin:0;font-size:20px;font-weight:500;letter-spacing:-.03em;line-height:1.15}
+.c1 .body{justify-content:flex-end}
+@container card (min-width:520px){.word{font-size:150px}.tag{font-size:27px}}
+@container card (max-height:430px){.word{font-size:66px}.tag{font-size:18px}}
+@container card (max-height:560px) and (max-aspect-ratio:13/10){.word{font-size:66px}}
+@container card (max-width:340px){.word{font-size:64px}}
+
+/* card 2: fees */
+.c2 .face{overflow:hidden}
+.pile{display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:12px 10px;padding:8px 0}
+.chip{position:relative;z-index:2;border:1.5px solid var(--ink);background:var(--paper);border-radius:999px;padding:13px 20px;font-size:17px;font-weight:600;letter-spacing:-.02em;touch-action:none;cursor:grab;
+  box-shadow:0 2px 0 var(--ink);white-space:nowrap}
+.chip.gone{visibility:hidden}
+.chip.drag{cursor:grabbing;box-shadow:0 12px 20px -8px rgba(16,19,24,.35),0 2px 0 var(--ink);z-index:6}
+.chip.pop{animation:pop .45s cubic-bezier(.3,1.5,.5,1)}
+@keyframes pop{from{transform:scale(.4);opacity:0}}
+.feeBar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.feeStat{margin:0;font-size:14px;font-weight:500;color:var(--ink-2);flex:1 1 200px}
+.feeStat .n{color:var(--ink);font-weight:500}
+@container card (min-width:520px){.chip{font-size:21px;padding:16px 26px}.pile{gap:18px 12px}}
+@container card (max-height:430px){.chip{padding:9px 15px;font-size:14px}.pile{gap:9px 8px}}
+@container card (max-height:560px) and (max-aspect-ratio:13/10){.chip{padding:10px 16px;font-size:15px}}
+
+/* card 3: the Keel card */
+.scene{perspective:1200px;width:100%;height:100%;display:grid;place-items:center;container-type:size;min-height:150px}
+.kcard{--w:min(100cqw,100cqh*1.586);position:relative;width:var(--w);aspect-ratio:1.586/1;transform-style:preserve-3d;transition:transform .85s cubic-bezier(.3,1.35,.5,1);border:0;padding:0;background:none;border-radius:calc(var(--w)*.06);filter:drop-shadow(0 18px 18px rgba(16,19,24,.28))}
+.kcard.flip{transform:rotateY(180deg)}
+.kf{position:absolute;inset:0;border-radius:calc(var(--w)*.06);backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;color:#fff;text-align:left}
+.kfront{background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.16) 48%,transparent 58%),linear-gradient(140deg,#4560FF,#2F4BFF 50%,#2035CE)}
+.kback{transform:rotateY(180deg);background:#171B23;color:#E9EBF2}
+.kmark{position:absolute;left:8%;top:9%;display:flex;align-items:center;gap:calc(var(--w)*.015);font-weight:700;font-size:calc(var(--w)*.085);letter-spacing:-.05em;line-height:1}
+.kmark svg{width:calc(var(--w)*.085);height:calc(var(--w)*.085)}
+.kcl{position:absolute;right:8%;top:9%;width:calc(var(--w)*.075);height:calc(var(--w)*.075);opacity:.9}
+.kchip{position:absolute;left:8%;top:36%;width:calc(var(--w)*.16);height:calc(var(--w)*.12);border-radius:calc(var(--w)*.02);background:linear-gradient(135deg,#F7F1E3,#D8D2C0);
+  background-image:linear-gradient(90deg,transparent 32%,rgba(16,19,24,.3) 33%,transparent 34%,transparent 66%,rgba(16,19,24,.3) 67%,transparent 68%),linear-gradient(0deg,transparent 48%,rgba(16,19,24,.3) 49%,transparent 51%),linear-gradient(135deg,#F7F1E3,#D8D2C0)}
+.knum{position:absolute;left:8%;bottom:22%;font-family:var(--m);font-size:calc(var(--w)*.058);letter-spacing:.06em;white-space:nowrap}
+.kname{position:absolute;left:8%;bottom:9%;font-family:var(--m);font-size:calc(var(--w)*.036);letter-spacing:.14em;text-transform:uppercase;opacity:.92}
+.kcoin{position:absolute;right:8%;bottom:8%;width:calc(var(--w)*.13);height:calc(var(--w)*.13);border-radius:50%;background:radial-gradient(circle at 35% 32%,#FFA070,#FF7A45 55%,#E5602B);box-shadow:inset 0 0 0 calc(var(--w)*.006) rgba(16,19,24,.35)}
+.kcoin::after{content:"";position:absolute;inset:22%;border-radius:50%;border:calc(var(--w)*.005) solid rgba(255,255,255,.55)}
+.kstripe{position:absolute;left:0;right:0;top:13%;height:17%;background:#050608}
+.kbt{position:absolute;left:8%;right:8%;top:38%;font-size:calc(var(--w)*.05);line-height:1.3;font-weight:500;letter-spacing:-.02em}
+.kbs{position:absolute;left:8%;right:8%;bottom:9%;font-family:var(--m);font-size:calc(var(--w)*.032);letter-spacing:.05em;opacity:.75}
+.kbsig{position:absolute;left:8%;width:52%;top:71%;height:calc(var(--w)*.075);background:repeating-linear-gradient(135deg,#EDEFF5 0 6px,#DADDE8 6px 12px);border-radius:3px}
+
+/* card 4: round-ups */
+.buys{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:none}
+.buy{width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:9px 12px;border-radius:16px;border:1.5px solid var(--ink);background:var(--paper);box-shadow:0 2px 0 var(--ink);transition:transform .12s,box-shadow .12s}
+.buy:active{transform:translateY(2px);box-shadow:0 0 0 var(--ink)}
+.buy b{font-size:14.5px;font-weight:600;letter-spacing:-.02em}
+.buy .n{font-size:12.5px;color:var(--ink-2);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.buy .up{background:var(--tang);color:var(--ink);font-weight:500;border-radius:999px;padding:1px 8px}
+.jarbox{position:relative;flex:1;min-height:120px;min-width:0}
+.jarbox canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.jartot{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex:none}
+.jartot .n{font-size:22px;font-weight:500}
+.jartot small{font-size:12px;color:var(--ink-3)}
+.jartot .ghost{height:30px;font-size:12px;padding:0 12px}
+.split{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+.split .left,.split .right{display:contents}
+@container body (min-width:400px){
+  .split{flex-direction:row;align-items:stretch;gap:16px}
+  .split .left{display:flex;width:46%;flex-direction:column;justify-content:center}
+  .split .right{display:flex;flex:1;flex-direction:column;gap:8px;min-width:0}
+  .buys{grid-template-columns:1fr}
+}
+@container card (max-height:560px) and (max-aspect-ratio:13/10){.buy{padding:6px 11px}.jarbox{min-height:70px}}
+
+/* card 5: calculator */
+.ctl{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:4px 10px}
+.ctl label{font-size:14px;font-weight:500;color:var(--ink-2)}
+.ctl output{font-size:20px;font-weight:500}
+.ctl input{grid-column:1/-1;width:100%;margin:0;touch-action:none}
+input[type=range]{-webkit-appearance:none;appearance:none;height:30px;background:transparent}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:var(--ink)}
+input[type=range]::-moz-range-track{height:6px;border-radius:3px;background:var(--ink)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;margin-top:-11px;border-radius:50%;background:var(--cobalt);border:3px solid var(--paper);box-shadow:0 0 0 1.5px var(--ink),0 3px 6px rgba(16,19,24,.3)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--cobalt);border:3px solid var(--paper);box-shadow:0 0 0 1.5px var(--ink)}
+.res{background:var(--ink);color:#fff;border-radius:20px;padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.res .lab{color:rgba(255,255,255,.75);margin:0}
+.res .big{margin:0;font-size:44px;line-height:1;font-weight:500;letter-spacing:-.05em}
+.res .sub{margin:0;font-size:13px;color:rgba(255,255,255,.82)}
+.bars{display:flex;align-items:flex-end;gap:4px;height:100%;min-height:36px}
+.bars span{flex:1;background:var(--cobalt);border-radius:3px 3px 0 0;min-height:3px;transition:height .3s cubic-bezier(.3,1.3,.5,1);position:relative}
+.bars span:last-child{background:var(--tang)}
+.barl{display:flex;gap:4px}
+.barl span{flex:1;text-align:center;font-family:var(--m);font-size:10px;color:var(--ink-3)}
+.c5 .fill{display:flex;flex-direction:column;gap:4px}
+@container card (max-height:430px){.c5 .body{gap:4px}.c5 .ctl label{font-size:13px}.c5 .ctl output{font-size:17px}.c5 .lab{margin-bottom:3px}.c5 .fine,.c5f{display:none}.jarbox{min-height:56px}.buy{padding:6px 11px}.res{padding:10px 14px}.res .big{font-size:34px}.ctl input{height:24px}.barl{display:none}}
+@container card (max-height:560px) and (max-aspect-ratio:13/10){.c5 .fine,.barl{display:none}.res .big{font-size:36px}.res{padding:10px 14px}}
+
+/* card 6: phone */
+.c6 .face{overflow:hidden}
+.phwrap{position:relative;flex:1;min-height:0;display:flex;justify-content:center;align-items:flex-start;margin-bottom:calc(-1 * var(--pad));overflow:hidden}
+.phone{flex:none;width:min(86%,340px);aspect-ratio:9/19.5;container-type:inline-size;background:var(--ink);border-radius:10cqw 10cqw 0 0;padding:3.2cqw 3.2cqw 0}
+.scr{height:100%;background:var(--paper);border-radius:7.5cqw 7.5cqw 0 0;padding:4.5cqw 5.5cqw 0;font-size:4.7cqw;line-height:1.3;display:flex;flex-direction:column;gap:3.4cqw;overflow:hidden;color:var(--ink)}
+.sbar{display:flex;align-items:center;justify-content:space-between;font-family:var(--m);font-size:.85em}
+.sbar i{width:26%;height:1.5em;border-radius:1em;background:var(--ink)}
+.greet{margin:0;color:var(--ink-3);font-size:.9em}
+.bal{margin:0;font-size:2.4em;font-weight:500;letter-spacing:-.05em;line-height:1}
+.sm{font-family:var(--m);font-size:.72em;color:var(--ink-3);margin:0}
+.minicard{display:flex;align-items:center;gap:3cqw;background:var(--t1);border-radius:4cqw;padding:3cqw}
+.mc{flex:none;width:17cqw;aspect-ratio:1.586;border-radius:1.6cqw;background:linear-gradient(135deg,#4560FF,#2338D6);transition:filter .3s,opacity .3s;position:relative}
+.mc::after{content:"";position:absolute;left:12%;bottom:14%;width:20%;aspect-ratio:1;border-radius:50%;background:var(--tang)}
+.frozen .mc{filter:grayscale(1) brightness(1.15);opacity:.6}
+.mct{flex:1;min-width:0;display:flex;flex-direction:column}
+.mct b{font-weight:600;font-size:.95em}
+.mct span{font-family:var(--m);font-size:.72em;color:var(--ink-3)}
+.sw{flex:none;width:12cqw;height:7cqw;border-radius:99px;border:0;background:#B9BEC9;position:relative;padding:0;transition:background .2s}
+.sw::after{content:"";position:absolute;top:.9cqw;left:.9cqw;width:5.2cqw;height:5.2cqw;border-radius:50%;background:#fff;transition:transform .25s cubic-bezier(.3,1.5,.5,1);box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.sw[aria-checked="true"]{background:var(--cobalt)}
+.sw[aria-checked="true"]::after{transform:translateX(5cqw)}
+.pot{display:flex;align-items:center;justify-content:space-between;background:var(--t2);border-radius:4cqw;padding:3cqw}
+.pot b{font-weight:600}
+.tx{display:flex;justify-content:space-between;padding:1.6cqw 0;border-top:1px solid var(--line);font-size:.92em}
+.tx .n{font-size:.92em}
+.ph-note{margin:0}
+
+/* card 7: security */
+.plain{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:11px;justify-content:center;height:100%}
+.plain li{position:relative;padding-left:20px;font-size:14.5px;line-height:1.4;color:var(--ink-2)}
+.plain li::before{content:"";position:absolute;left:0;top:.42em;width:9px;height:9px;border-radius:2px;background:var(--cobalt)}
+.plain b{color:var(--ink);font-weight:600;letter-spacing:-.015em}
+@container card (min-width:520px){.plain li{font-size:16.5px}.plain{gap:14px}}
+@container card (max-height:430px){.plain{gap:6px}.plain li{font-size:12.5px;line-height:1.32;padding-left:16px}.plain li::before{width:7px;height:7px}}
+@container card (max-height:560px) and (max-aspect-ratio:13/10){.plain{gap:7px}.plain li{font-size:13.5px;line-height:1.35}}
+
+/* card 8: faq */
+.faq{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;height:100%;min-height:200px}
+.q{position:relative;perspective:900px;background:none;border:0;padding:0;text-align:left;min-height:96px}
+.qi{position:absolute;inset:0;transform-style:preserve-3d;transition:transform .65s cubic-bezier(.3,1.3,.5,1)}
+.q[aria-pressed="true"] .qi{transform:rotateY(180deg)}
+.qf,.qb{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;border-radius:18px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;overflow:hidden}
+.qf{background:var(--paper);border:1.5px solid var(--ink);box-shadow:0 2px 0 var(--ink);font-size:16px;font-weight:600;letter-spacing:-.025em;line-height:1.15}
+.qf i{font-style:normal;font-family:var(--m);font-size:11px;color:var(--ink-3);font-weight:400;letter-spacing:.06em;text-transform:uppercase}
+.qb{background:var(--cobalt);color:#fff;transform:rotateY(180deg);font-size:13px;line-height:1.35;justify-content:center}
+.qb .vfy{background:rgba(255,255,255,.2)}
+@container card (min-width:520px){.qf{font-size:19px;padding:18px}.qb{font-size:15px;padding:18px}}
+@container card (max-height:430px){.qf{font-size:13.5px;padding:10px}.qb{font-size:11.5px;padding:10px}.faq{min-height:0;gap:8px}.q{min-height:0}}
+@container card (max-width:340px){.qf{font-size:14px;padding:10px}.qb{font-size:11.5px;padding:10px}}
+
+/* card 9 */
+.c9 .face::before{content:"";position:absolute;left:12%;right:12%;top:30%;bottom:34%;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='7' width='28' height='4' rx='2' fill='%23fff'/%3E%3Cpath d='M9 14h14l-5 16h-4z' fill='%23fff'/%3E%3C/svg%3E") center/contain no-repeat;opacity:.16;pointer-events:none}
+.c9 .head,.c9 .body{position:relative;z-index:1}
+@container card (min-aspect-ratio:13/10){.c9 .face::before{left:4%;right:auto;width:44%;top:12%;bottom:12%}}
+.c9 .thanks{background:#fff}
+
+/* list view overrides */
+html:not(.dk) .body>.scene{flex:none;height:min(300px,60vw);min-height:0}
+html:not(.dk) .phwrap{flex:none;height:320px}
+html:not(.dk) .jarbox{min-height:200px}
+html:not(.dk) .faq{min-height:260px}
+html:not(.dk) .pile{min-height:180px}
+html:not(.dk) .c9 .face::before{display:none}
+html:not(.dk) .c5f{min-height:60px}
+/* spray */
+#spray{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:999}
+
+/* landscape phones and other short screens */
+@media (max-width:560px){.hint{display:none}}
+@media (max-height:520px){
+  .top{height:38px}
+  .hint{display:none}
+  .stage{padding-bottom:26px}
+  .dk .card[data-pos="1"]{transform:translateY(10px) scale(.96) rotate(-1.2deg)}
+  .dk .card[data-pos="2"]{transform:translateY(19px) scale(.92) rotate(1deg)}
+  .credit{font-size:10px}
+  .dock{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding-bottom:4px}
+  .dock .credit{grid-column:1;grid-row:1;text-align:left}
+  .dock .ctrl{grid-column:2;grid-row:1}
+  .nb{height:38px}
+  .dot{height:30px}
+}
+.nb{flex:none}.nb .lbl{white-space:nowrap}
+@media (max-width:420px){
+  .nb{padding:0 12px}.nb.pri{padding:0 14px 0 16px}
+  .ctrl{gap:4px}
+  .dot{width:19px}
+}
+@media (max-width:350px){
+  .nb.pri .lbl{display:none}.nb.pri{padding:0;width:44px}
+  .dot{width:18px}
+}
+@media (max-width:420px) and (min-height:521px){
+  .credit{font-size:10.5px}
+}
+@media (prefers-reduced-motion:reduce){
+  .dk .card{transition:opacity .25s}
+  .kcard,.qi{transition-duration:.01s}
+  .chip.pop{animation:none}
+  .dot::after,.bars span{transition:none}
+}
+noscript{display:block;padding:12px 0;font-size:14px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="mark" viewBox="0 0 32 32"><rect x="2" y="7" width="28" height="4" rx="2" fill="currentColor"/><path d="M9 14h14l-5 16h-4z" fill="currentColor"/></symbol>
+</svg>
+
+<div class="app flat" id="app">
+  <header class="top">
+    <a class="brand" href="#top" data-goto="0" aria-label="Keel, first card"><svg aria-hidden="true"><use href="#mark"/></svg>Keel</a>
+    <p class="hint" id="hint">Drag the top card, or press the arrow keys</p>
+    <div class="top-r">
+      <p class="count n" aria-hidden="true"><span id="cur">1</span> / 9</p>
+      <button class="lnk" id="viewBtn" type="button">List view</button>
+    </div>
+  </header>
+
+  <main class="stage" id="top">
+    <div class="deck" id="deck" role="region" aria-roledescription="deck of cards" aria-label="Keel, nine cards. Use the arrow keys or the Next and Back buttons to change card.">
+
+      <!-- 1 -->
+      <article class="card c1" data-title="Keel and the waitlist" aria-label="Card 1 of 9: Keel and the waitlist" tabindex="-1">
+        <div class="face">
+          <div class="head">
+            <p class="kick">Card-first banking</p>
+            <h1 class="word"><svg aria-hidden="true"><use href="#mark"/></svg>Keel</h1>
+            <p class="tag">Money with a steady keel.</p>
+            <p class="lede">A debit card and an app that cut the fees and sort your budget while you spend.</p>
+          </div>
+          <div class="body">
+            <div class="wrap-join" role="status">
+              <form data-join="first" novalidate>
+                <label class="lab" for="em1">Email for the waitlist</label>
+                <div class="row">
+                  <input id="em1" name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
+                  <button class="btn" type="submit">Join the waitlist</button>
+                </div>
+                <p class="msg" aria-live="polite"></p>
+              </form>
+              <div class="thanks" hidden tabindex="-1"><strong>You're on the list.</strong><p>One email when your invite is ready.</p></div>
+              <p class="fine">Concept site. Nothing is sent or stored. Eight more cards, swipe or press the right arrow.</p>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 2 -->
+      <article class="card c2" data-title="Fees you stopped noticing" aria-label="Card 2 of 9: Fees you stopped noticing" tabindex="-1">
+        <div class="face">
+          <div class="head">
+            <p class="kick">Fees</p>
+            <h2>Fees you stopped noticing.</h2>
+            <p class="lede">Flick each one off the card. Drag it, or press Enter on it.</p>
+          </div>
+          <div class="body">
+            <div class="pile fill" id="pile">
+              <button class="chip" type="button" data-nodrag data-r="-4">Monthly maintenance fee</button>
+              <button class="chip" type="button" data-nodrag data-r="3">Overdraft fee</button>
+              <button class="chip" type="button" data-nodrag data-r="-2">Foreign transaction fee</button>
+              <button class="chip" type="button" data-nodrag data-r="4">Out-of-network ATM fee</button>
+            </div>
+            <div class="feeBar">
+              <p class="feeStat" id="feeStat" role="status" aria-live="polite">4 of 4 fees still on your card.</p>
+              <button class="ghost" id="feeReset" type="button" data-nodrag>Put them back</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 3 -->
+      <article class="card c3" data-title="The Keel card" aria-label="Card 3 of 9: The Keel card" tabindex="-1">
+        <div class="face">
+          <div class="head">
+            <p class="kick">The card</p>
+            <h2>This is the Keel card.</h2>
+            <p class="lede">Tap it to turn it over. The number is not printed on the front.</p>
+          </div>
+          <div class="body">
+            <div class="scene fill">
+              <button class="kcard" id="kcard" type="button" aria-pressed="false" aria-label="Keel card, front. Press to turn it over.">
+                <span class="kf kfront" aria-hidden="true">
+                  <span class="kmark"><svg aria-hidden="true"><use href="#mark"/></svg>Keel</span>
+                  <svg class="kcl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 7c2.5 3 2.5 7 0 10"/><path d="M12 4c4 4.5 4 11.5 0 16"/><path d="M16 1.5c5.5 6 5.5 15 0 21"/></svg>
+                  <span class="kchip"></span>
+                  <span class="knum">4021 ···· ···· 0417</span>
+                  <span class="kname">Your name</span>
+                  <span class="kcoin"></span>
+                </span>
+                <span class="kf kback" aria-hidden="true">
+                  <span class="kstripe"></span>
+                  <span class="kbt">Number, expiry and code live in the app. Reveal them when you need them.</span>
+                  <span class="kbsig"></span>
+                  <span class="kbs">SAMPLE CARD. NOT A REAL NUMBER.</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 4 -->
+      <article class="card c4" data-title="Round-ups" aria-label="Card 4 of 9: Round-ups" tabindex="-1">
+        <div class="face">
+          <div class="head">
+            <p class="kick">Round-ups</p>
+            <h2>Spare change, saved.</h2>
+            <p class="lede">Tap a purchase. The gap to the next dollar drops into the jar.</p>
+          </div>
+          <div class="body"><div class="split">
+            <div class="left">
+              <ul class="buys" role="list">
+                <li><button class="buy" type="button" data-p="435"><b>Flat white</b><span class="n">$4.35 <span class="up">+65¢</span></span></button></li>
+                <li><button class="buy" type="button" data-p="2380"><b>Groceries</b><span class="n">$23.80 <span class="up">+20¢</span></span></button></li>
+                <li><button class="buy" type="button" data-p="270"><b>Train fare</b><span class="n">$2.70 <span class="up">+30¢</span></span></button></li>
+                <li><button class="buy" type="button" data-p="1145"><b>Lunch</b><span class="n">$11.45 <span class="up">+55¢</span></span></button></li>
+              </ul>
+            </div>
+            <div class="right">
+              <div class="jarbox"><canvas id="jar" role="img" aria-label="A glass jar filling with coins as you tap purchases"></canvas></div>
+              <div class="jartot">
+                <div><small>In the jar</small> <span class="n" id="jarTot" role="status" aria-live="polite">$0.00</span></div>
+                <button class="ghost" id="jarReset" type="button">Empty</button>
+              </div>
+            </div>
+          </div></div>
+        </div>
+      </article>
+
+      <!-- 5 -->
+      <article class="card c5" data-title="Round-up calculator" aria-label="Card 5 of 9: Round-up calculator" tabindex="-1">
+        <div class="face">
+          <div class="head">
+            <p class="kick">Round-up calculator</p>
+            <h2>What your spare change adds up to.</h2>
+            <p class="lede">Move both sliders. It is your two numbers, multiplied out.</p>
+          </div>
+          <div class="body">
+            <div class="ctl">
+              <label for="wk">Card purchases per week</label><output for="wk" class="n" id="wkv">14</output>
+              <input id="wk" type="range" min="1" max="60" step="1" value="14">
+            </div>
+            <div class="ctl">
+              <label for="chg">Spare change per purchase</label><output for="chg" class="n" id="chgv">45¢</output>
+              <input id="chg" type="range" min="5" max="95" step="5" value="45">
+            </div>
+            <div class="res">
+              <p class="lab">Set aside in a year</p>
+              <p class="big n" id="yr" aria-hidden="true">$327.60</p>
+              <p class="sub n" id="mo" aria-hidden="true">$27.30 a month</p>
+              <span class="sr" id="yrSr" role="status" aria-live="polite"></span>
+            </div>
+            <div class="fill c5f"><div class="bars" id="bars" aria-hidden="true"></div></div>
+            <div class="barl" aria-hidden="true"><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span></div>
+            <p class="fine">Purchases times 52 weeks times spare change. Not interest, not a return. Arrow keys move a slider, so Tab away to change card.</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- 6 -->
+      <article class="card c6" data-title="The app" aria-label="Card 6 of 9: The app" tabindex="-1">
+        <div class="face">
+          <div class="head">
+            <p class="kick">The app</p>
+            <h2>The whole account on one screen.</h2>
+            <p class="lede">Balance, card controls and your round-up pot. Try the freeze switch.</p>
+          </div>
+          <div class="body">
+            <div class="phwrap fill">
+              <div class="phone" id="phone">
+                <div class="scr">
+                  <div class="sbar"><span class="n">9:41</span><i></i><span class="n">5G</span></div>
+                  <p class="greet">Good morning, Sam</p>
+                  <div><p class="bal n">$1,284.60</p><p class="sm">Main balance. Sample data.</p></div>
+                  <div class="minicard" id="mini">
+                    <span class="mc"></span>
+                    <span class="mct"><b id="miniT">Card active</b><span>Keel ···· 0417</span></span>
+                    <button class="sw" id="freeze" type="button" role="switch" aria-checked="false" aria-label="Freeze card" data-nodrag></button>
+                  </div>
+                  <div class="pot"><span><b>Round-up pot</b><br><span class="sm">Sample</span></span><span class="n"><b>$37.20</b></span></div>
+                  <div class="tx"><span>Flat white</span><span class="n">-$4.35</span></div>
+                  <div class="tx"><span>Train fare</span><span class="n">-$2.70</span></div>
+                  <div class="tx"><span>Groceries</span><span class="n">-$23.80</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 7 -->
+      <article class="card c7" data-title="Security" aria-label="Card 7 of 9: Security" tabindex="-1">
+        <div class="face">
+          <div class="head">
+            <p class="kick">Security</p>
+            <h2>Security, in plain sentences.</h2>
+          </div>
+          <div class="body">
+            <ul class="plain">
+              <li><b>Freeze in one tap.</b> Turn the card off in the app, and back on when it turns up.</li>
+              <li><b>Every payment pings you.</b> You get a notification when a purchase clears.</li>
+              <li><b>The full number stays hidden.</b> You reveal it in the app when you need it.</li>
+              <li><b>Your phone checks it is you.</b> Sign in with your face or fingerprint.</li>
+              <li><b>We never ask for your PIN.</b> Not by call, text or email.</li>
+              <li><b>Your money sits with a partner bank.</b> <span class="vfy">[VERIFY: banking partner and deposit insurance disclosure]</span></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <!-- 8 -->
+      <article class="card c8" data-title="Questions" aria-label="Card 8 of 9: Questions" tabindex="-1">
+        <div class="face">
+          <div class="head">
+            <p class="kick">Questions</p>
+            <h2>Four questions. Tap to flip.</h2>
+          </div>
+          <div class="body">
+            <div class="faq fill">
+              <button class="q" type="button" aria-pressed="false"><span class="qi"><span class="qf">What does Keel cost?<i>Tap</i></span><span class="qb" aria-hidden="true">Pricing is not set. The plan is no monthly fee and no overdraft fee. <span class="vfy">[VERIFY: fee schedule]</span></span></span></button>
+              <button class="q" type="button" aria-pressed="false"><span class="qi"><span class="qf">How do round-ups work?<i>Tap</i></span><span class="qb" aria-hidden="true">Each card purchase rounds up to the next dollar. The difference moves to your round-up pot.</span></span></button>
+              <button class="q" type="button" aria-pressed="false"><span class="qi"><span class="qf">Is my money protected?<i>Tap</i></span><span class="qb" aria-hidden="true"><span class="vfy">[VERIFY: banking partner and deposit insurance disclosure]</span></span></span></button>
+              <button class="q" type="button" aria-pressed="false"><span class="qi"><span class="qf">When do I get a card?<i>Tap</i></span><span class="qb" aria-hidden="true">Invites go out in batches, in the order people join. There is no launch date yet.</span></span></button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- 9 -->
+      <article class="card c9" data-title="Join the waitlist" aria-label="Card 9 of 9: Join the waitlist" tabindex="-1">
+        <div class="face">
+          <div class="head">
+            <p class="kick">Waitlist</p>
+            <h2>Be early.</h2>
+            <p class="lede">Invites go out in batches, in the order people join. One email when yours is ready.</p>
+          </div>
+          <div class="body">
+            <div class="wrap-join" style="justify-content:flex-end;height:100%" role="status">
+              <form data-join="final" novalidate>
+                <label class="lab" for="em2">Email for the waitlist</label>
+                <div class="row">
+                  <input id="em2" name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
+                  <button class="btn tang" type="submit">Join the waitlist</button>
+                </div>
+                <p class="msg" aria-live="polite"></p>
+              </form>
+              <div class="thanks" hidden tabindex="-1"><strong>You're on the list.</strong><p>One email when your invite is ready.</p><button class="lnk" type="button" data-goto="0">Start over</button></div>
+              <p class="fine">Concept site. Nothing is sent or stored.</p>
+            </div>
+          </div>
+        </div>
+      </article>
+
+    </div>
+    <noscript>Turn on JavaScript to swipe the deck. The cards are listed above.</noscript>
+  </main>
+
+  <footer class="dock">
+    <div class="ctrl">
+      <button class="nb" id="back" type="button" aria-label="Back one card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button>
+      <nav class="dots" id="dots" aria-label="Cards"></nav>
+      <button class="nb pri" id="next" type="button"><span class="lbl">Next</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+    </div>
+    <p class="credit">Concept site. Design and build by [YOUR STUDIO].</p>
+  </footer>
+</div>
+
+<div class="sr" id="live" role="status" aria-live="polite" aria-atomic="true"></div>
+<canvas id="spray" aria-hidden="true"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+(()=>{
+'use strict';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const root=document.documentElement;
+const deckEl=$('#deck'), live=$('#live');
+const fmt=c=>'$'+(c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+/* ---------- shared coin drawing ---------- */
+function coin(ctx,x,y,r,a,sx){
+  ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.scale(sx,1);
+  const g=ctx.createRadialGradient(-r*.35,-r*.35,r*.1,0,0,r);
+  g.addColorStop(0,'#FFA070');g.addColorStop(.55,'#FF7A45');g.addColorStop(1,'#E5602B');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill();
+  ctx.lineWidth=Math.max(1,r*.13);ctx.strokeStyle='rgba(16,19,24,.4)';ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,r*.58,0,7);ctx.lineWidth=Math.max(1,r*.1);ctx.strokeStyle='rgba(255,255,255,.5)';ctx.stroke();
+  ctx.restore();
+}
+
+/* ---------- animation loop ---------- */
+const anims=new Set();let raf=0,lastT=0;
+function loop(t){raf=0;const dt=Math.min(.032,(t-lastT)/1000);lastT=t;for(const a of [...anims]){if(!a(dt))anims.delete(a)}if(anims.size)raf=requestAnimationFrame(loop)}
+function run(fn){anims.add(fn);if(!raf){lastT=performance.now();raf=requestAnimationFrame(loop)}}
+
+/* ---------- deck ---------- */
+const cards=$$('.card').map((el,i)=>({el,i,x:0,y:0,r:0,vx:0,vy:0,vr:0,side:1,flight:null,anim:null,title:el.dataset.title}));
+const N=cards.length;let cur=0,kb=false,touched=false;
+const isDeck=()=>root.classList.contains('dk');
+function paint(c){const W=c.el.offsetWidth||600;c.el.style.transform=`perspective(1400px) translate3d(${c.x.toFixed(1)}px,${c.y.toFixed(1)}px,0) rotate(${c.r.toFixed(2)}deg) rotateY(${(-c.x/W*9).toFixed(2)}deg)`}
+function clearT(c){c.el.style.transform='';c.el.style.transformOrigin='';c.el.classList.remove('live','drag');c.x=c.y=c.r=c.vx=c.vy=c.vr=0}
+function stop(c){if(c.anim){anims.delete(c.anim);c.anim=null}}
+function springTo(c,tx,ty,tr,done){
+  stop(c);c.el.classList.add('live');
+  if(reduce){c.x=tx;c.y=ty;c.r=tr;paint(c);done&&done();return}
+  const fn=dt=>{
+    c.vx+=(-200*(c.x-tx)-18*c.vx)*dt;c.x+=c.vx*dt;
+    c.vy+=(-200*(c.y-ty)-18*c.vy)*dt;c.y+=c.vy*dt;
+    c.vr+=(-240*(c.r-tr)-20*c.vr)*dt;c.r+=c.vr*dt;
+    paint(c);
+    if(Math.abs(c.x-tx)<.4&&Math.abs(c.y-ty)<.4&&Math.abs(c.r-tr)<.05&&Math.abs(c.vx)<6&&Math.abs(c.vy)<6&&Math.abs(c.vr)<1){
+      c.x=tx;c.y=ty;c.r=tr;paint(c);c.anim=null;done&&done();return false}
+    return true};
+  c.anim=fn;run(fn);
+}
+function flyOut(c,vx,vy){
+  stop(c);c.side=vx<0?-1:1;
+  if(reduce){c.flight=null;clearT(c);return}
+  c.el.classList.add('live');c.flight='out';
+  if(Math.abs(vx)<1300)vx=1300*c.side;
+  const lim=innerWidth/2+c.el.offsetWidth/2+90;let t=0;c.vx=vx;c.vy=vy;
+  const fn=dt=>{t+=dt;c.x+=c.vx*dt;c.y+=c.vy*dt;c.vy+=700*dt;c.r+=c.vx*.028*dt;paint(c);
+    if(Math.abs(c.x)>lim||t>1.3){c.anim=null;c.flight=null;clearT(c);render();return false}return true};
+  c.anim=fn;run(fn);
+}
+function advance(vx,vy){
+  if(cur>=N-1)return false;
+  const c=cards[cur];cur++;
+  flyOut(c,vx!=null?vx:(cur%2?1500:-1500),vy!=null?vy:-160);
+  try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}
+  render();return true;
+}
+function retreat(){
+  if(cur<=0)return false;
+  const c=cards[--cur];stop(c);c.flight='in';
+  c.x=c.side*(innerWidth/2+c.el.offsetWidth/2+60);c.y=-30;c.r=c.side*14;c.vx=c.vy=c.vr=0;paint(c);
+  render();
+  springTo(c,0,0,0,()=>{c.flight=null;clearT(c);render()});
+  return true;
+}
+let gt=0;
+function goTo(n){
+  const my=++gt;
+  const step=()=>{if(my!==gt)return;
+    if(cur<n)advance();else if(cur>n)retreat();else return;
+    setTimeout(step,reduce?0:90)};
+  step();
+}
+const dotsEl=$('#dots'),nextB=$('#next'),backB=$('#back');
+const dots=cards.map((c,i)=>{const b=document.createElement('button');b.type='button';b.className='dot';b.setAttribute('aria-label',`Card ${i+1}: ${c.title}`);b.addEventListener('click',()=>goTo(i));dotsEl.appendChild(b);return b});
+let lastCur=-1;
+function render(){
+  if(!isDeck())return;
+  cards.forEach((c,i)=>{
+    const p=i-cur;let pos=p<0?'gone':p>2?'far':String(p);
+    if(c.flight)pos=c.flight;
+    if(c.el.dataset.pos!==pos)c.el.dataset.pos=pos;
+    c.el.inert=(p!==0);
+  });
+  if(cur!==lastCur){
+    const first=lastCur<0;lastCur=cur;
+    $('#cur').textContent=cur+1;
+    dots.forEach((d,i)=>d.setAttribute('aria-current',i===cur?'true':'false'));
+    backB.setAttribute('aria-disabled',cur===0?'true':'false');
+    $('.lbl',nextB).textContent=cur===N-1?'Start over':'Next';nextB.setAttribute('aria-label',cur===N-1?'Start over':'Next card');
+    if(!first){live.textContent='';setTimeout(()=>{live.textContent=`Card ${cur+1} of ${N}: ${cards[cur].title}`},40)}
+    J.until=performance.now()+1200;J.run&&J.run();
+    setTimeout(()=>{const ae=document.activeElement;if(kb&&(!ae||ae===document.body||!ae.isConnected||ae.closest&&ae.closest('[inert]')))cards[cur].el.focus({preventScroll:true})},80);
+  }
+}
+nextB.addEventListener('click',()=>{touched=true;cur>=N-1?goTo(0):advance()});
+backB.addEventListener('click',()=>{touched=true;retreat()});
+$$('[data-goto]').forEach(b=>b.addEventListener('click',e=>{e.preventDefault();if(isDeck())goTo(+b.dataset.goto)}));
+
+/* drag */
+let drag=null,suppress=false;
+deckEl.addEventListener('pointerdown',e=>{
+  touched=true;kb=false;suppress=false;
+  if(!isDeck()||e.button>0||!e.isPrimary)return;
+  const c=cards[cur];if(!c.el.contains(e.target))return;
+  if(e.target.closest('input,textarea,select,[data-nodrag]'))return;
+  if(c.anim){stop(c);c.flight=null;render()}
+  const r=c.el.getBoundingClientRect();
+  drag={id:e.pointerId,c,sx:e.clientX,sy:e.clientY,ox:c.x,oy:c.y,moved:false,s:[]};
+  if(Math.abs(c.r)<.5)c.el.style.transformOrigin=`${e.clientX-r.left}px ${e.clientY-r.top}px`;
+  window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);
+});
+function mv(e){
+  if(!drag||e.pointerId!==drag.id)return;
+  const c=drag.c,dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+  if(!drag.moved){if(Math.hypot(dx,dy)<6)return;drag.moved=true;c.el.classList.add('live','drag')}
+  const W=c.el.offsetWidth,lastCard=cur>=N-1;
+  c.x=drag.ox+dx*(lastCard?.3:1);c.y=drag.oy+dy*(lastCard?.15:.5);
+  c.r=clamp(c.x/W*15,-20,20);paint(c);
+  drag.s.push({t:e.timeStamp,x:e.clientX,y:e.clientY});
+  while(drag.s.length>2&&e.timeStamp-drag.s[0].t>110)drag.s.shift();
+  e.preventDefault&&e.cancelable&&0;
+}
+function up(e){
+  if(!drag||e.pointerId!==drag.id)return;
+  window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);
+  const d=drag;drag=null;const c=d.c;
+  const settle=()=>{clearT(c);render()};
+  if(!d.moved){if(c.x||c.y||c.r)springTo(c,0,0,0,settle);else c.el.style.transformOrigin='';return}
+  suppress=true;setTimeout(()=>suppress=false,60);
+  c.el.classList.remove('drag');
+  let vx=0,vy=0;
+  if(d.s.length>1&&e.type!=='pointercancel'){const a=d.s[0],b=d.s[d.s.length-1],dt=(b.t-a.t)/1000;if(dt>.01){vx=clamp((b.x-a.x)/dt,-4000,4000);vy=clamp((b.y-a.y)/dt,-4000,4000)}}
+  const W=c.el.offsetWidth,proj=c.x+vx*.16;
+  if(e.type!=='pointercancel'&&cur<N-1&&(Math.abs(proj)>W*.33||(Math.abs(vx)>700&&Math.abs(c.x)>20))){
+    cur++;flyOut(c,vx||(c.x>0?1:-1)*1400,vy*.5);try{navigator.vibrate&&navigator.vibrate(8)}catch(_){}render();
+  }else springTo(c,0,0,0,settle);
+}
+deckEl.addEventListener('click',e=>{if(suppress){e.preventDefault();e.stopPropagation()}},true);
+deckEl.addEventListener('dragstart',e=>e.preventDefault());
+
+/* keyboard */
+document.addEventListener('keydown',e=>{
+  kb=true;touched=true;
+  if(!isDeck()||e.altKey||e.ctrlKey||e.metaKey)return;
+  const t=e.target;
+  if(t.matches&&t.matches('input:not([type=range]),textarea,select'))return;
+  if(t.matches&&t.matches('input[type=range]')&&['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+  if(e.key==='ArrowRight'){e.preventDefault();cur>=N-1?0:advance()}
+  else if(e.key==='ArrowLeft'){e.preventDefault();retreat()}
+  else if(e.key==='Home'){e.preventDefault();goTo(0)}
+  else if(e.key==='End'){e.preventDefault();goTo(N-1)}
+});
+
+/* deck or list view */
+const viewBtn=$('#viewBtn');
+function setDeck(on){
+  root.classList.toggle('dk',on);$('#app').classList.toggle('flat',!on);root.classList.toggle('flat',!on);
+  viewBtn.textContent=on?'List view':'Deck view';
+  if(on){lastCur=-1;render();hint()}
+  else{cards.forEach(c=>{stop(c);c.flight=null;clearT(c);c.el.inert=false;delete c.el.dataset.pos});J.run&&J.run()}
+  setTimeout(()=>{J.resize&&J.resize(true)},60);
+}
+viewBtn.addEventListener('click',()=>{setDeck(!isDeck());scrollTo(0,0)});
+function hint(){$('#hint').textContent=matchMedia('(pointer:coarse)').matches?'Swipe the top card away':'Drag the top card, or press the arrow keys'}
+
+/* ---------- card 2: fees ---------- */
+(()=>{
+  const chips=$$('.chip'),stat=$('#feeStat'),face=$('.c2 .face');let gone=0;
+  const upd=()=>{const left=chips.length-gone;stat.innerHTML=left===0?'All four gone. Keel plans to charge none of them. <span class="vfy">[VERIFY: fee schedule]</span>':`<span class="n">${left}</span> of 4 fees still on your card.`};
+  chips.forEach(ch=>{
+    const s={x:0,y:0,r:+ch.dataset.r||0,vx:0,vy:0,down:null,dragged:false,raf:0};
+    const put=()=>{ch.style.transform=`translate3d(${s.x}px,${s.y}px,0) rotate(${s.r+s.x*.04}deg)`};
+    put();
+    const cancel=()=>{if(s.raf){cancelAnimationFrame(s.raf);s.raf=0}};
+    const fling=(vx,vy)=>{
+      cancel();
+      if(reduce){finish();return}
+      const sp=Math.hypot(vx,vy);if(sp<900){const k=900/(sp||1);vx=sp?vx*k:900;vy*=sp?k:1}
+      s.vx=vx;s.vy=vy;let t=0,l=performance.now();
+      const step=n=>{const dt=Math.min(.032,(n-l)/1000);l=n;t+=dt;s.x+=s.vx*dt;s.y+=s.vy*dt;s.vy+=500*dt;s.r+=s.vx*.03*dt;put();
+        const a=ch.getBoundingClientRect(),b=face.getBoundingClientRect();
+        if(a.right<b.left||a.left>b.right||a.bottom<b.top||a.top>b.bottom||t>1.6){finish();return}
+        s.raf=requestAnimationFrame(step)};
+      s.raf=requestAnimationFrame(step);
+    };
+    const finish=()=>{cancel();ch.classList.add('gone');ch.classList.remove('drag');gone++;upd()};
+    const back=()=>{
+      cancel();const sx=s.x,sy=s.y,sr=s.r;let l=performance.now();
+      if(reduce){s.x=s.y=0;put();return}
+      s.vx=s.vy=0;
+      const step=n=>{const dt=Math.min(.032,(n-l)/1000);l=n;
+        s.vx+=(-220*s.x-19*s.vx)*dt;s.x+=s.vx*dt;s.vy+=(-220*s.y-19*s.vy)*dt;s.y+=s.vy*dt;put();
+        if(Math.abs(s.x)<.4&&Math.abs(s.y)<.4&&Math.abs(s.vx)<5&&Math.abs(s.vy)<5){s.x=s.y=0;put();s.raf=0;return}
+        s.raf=requestAnimationFrame(step)};
+      s.raf=requestAnimationFrame(step);
+    };
+    ch._reset=()=>{cancel();s.x=s.y=0;put();if(ch.classList.contains('gone')){ch.classList.remove('gone');ch.classList.add('pop');setTimeout(()=>ch.classList.remove('pop'),500)}};
+    ch.addEventListener('pointerdown',e=>{
+      if(e.button>0||ch.classList.contains('gone'))return;
+      cancel();ch.setPointerCapture(e.pointerId);
+      s.down={x:e.clientX-s.x,y:e.clientY-s.y,id:e.pointerId,samples:[]};s.dragged=false;ch.classList.add('drag');
+    });
+    ch.addEventListener('pointermove',e=>{
+      if(!s.down||e.pointerId!==s.down.id)return;
+      const nx=e.clientX-s.down.x,ny=e.clientY-s.down.y;
+      if(!s.dragged&&Math.hypot(nx-s.x,ny-s.y)<4)return;
+      s.dragged=true;s.x=nx;s.y=ny;put();
+      s.down.samples.push({t:e.timeStamp,x:e.clientX,y:e.clientY});
+      while(s.down.samples.length>2&&e.timeStamp-s.down.samples[0].t>110)s.down.samples.shift();
+    });
+    const end=e=>{
+      if(!s.down||e.pointerId!==s.down.id)return;
+      const sm=s.down.samples;s.down=null;ch.classList.remove('drag');
+      if(!s.dragged)return;
+      let vx=0,vy=0;if(sm.length>1&&e.type==='pointerup'){const a=sm[0],b=sm[sm.length-1],dt=(b.t-a.t)/1000;if(dt>.01){vx=(b.x-a.x)/dt;vy=(b.y-a.y)/dt}}
+      if(Math.hypot(vx,vy)>500||Math.hypot(s.x,s.y)>120)fling(vx||(s.x||1)*8,vy);else back();
+    };
+    ch.addEventListener('pointerup',end);ch.addEventListener('pointercancel',end);
+    ch.addEventListener('click',()=>{if(s.dragged){s.dragged=false;return}fling(1100,-260)});
+  });
+  $('#feeReset').addEventListener('click',()=>{gone=0;chips.forEach(c=>c._reset());upd()});
+  upd();
+})();
+
+/* ---------- card 3: flip ---------- */
+(()=>{
+  const k=$('#kcard');
+  k.addEventListener('click',()=>{const f=k.classList.toggle('flip');k.setAttribute('aria-pressed',f);k.setAttribute('aria-label',f?'Keel card, back. Press to turn it over.':'Keel card, front. Press to turn it over.')});
+})();
+
+/* ---------- card 4: jar ---------- */
+const J={cv:$('#jar'),W:0,H:0,dpr:1,eng:null,bodies:[],cents:0,coins:0,g:null,until:0,vis:true,raf:0,timers:[]};
+J.ctx=J.cv.getContext('2d');
+const M=window.Matter;
+function jgeo(){const W=J.W,H=J.H,jl=W*.16,jr=W*.84,y0=H*.12,jb=H-6,cr=Math.min((jr-jl)*.28,H*.2),r=clamp((jr-jl)/17,6.5,13);return{jl,jr,y0,jb,cr,r}}
+function pilePos(k,g){const cols=Math.max(1,Math.floor((g.jr-g.jl-g.cr*.4)/(g.r*2)));const row=Math.floor(k/cols),col=k%cols;return{x:g.jl+g.cr*.2+g.r+col*g.r*2+(row%2?g.r*.5:0),y:g.jb-g.r-row*g.r*1.8}}
+function jbuild(){
+  const saved=J.bodies.map(b=>b.position),og=J.g;
+  J.g=jgeo();const g=J.g;
+  if(!M)return;
+  J.eng=M.Engine.create({gravity:{x:0,y:1.05}});
+  const o={isStatic:true,friction:.25,restitution:.15},t=60,B=M.Bodies;
+  const w=[B.rectangle(g.jl-t/2,g.jb-J.H*1.5,t,J.H*3,o),B.rectangle(g.jr+t/2,g.jb-J.H*1.5,t,J.H*3,o),B.rectangle(J.W/2,g.jb+t/2,J.W*2,t,o)];
+  const L=g.cr*1.42+20,m=8.5;
+  w.push(B.rectangle(g.jl+g.cr/2-m,g.jb-g.cr/2+m,L,24,Object.assign({angle:Math.PI/4},o)));
+  w.push(B.rectangle(g.jr-g.cr/2+m,g.jb-g.cr/2+m,L,24,Object.assign({angle:-Math.PI/4},o)));
+  M.Composite.add(J.eng.world,w);
+  const n=J.bodies.length;J.bodies=[];
+  for(let k=0;k<n;k++){
+    let p=pilePos(k,g);
+    if(og&&saved[k]){const nx=(saved[k].x-og.jl)/(og.jr-og.jl),ny=(og.jb-saved[k].y)/(og.jb-og.y0);p={x:g.jl+nx*(g.jr-g.jl),y:g.jb-clamp(ny,0,1)*(g.jb-g.y0)}}
+    addBody(p.x,p.y,0);
+  }
+}
+function addBody(x,y,vy){
+  const g=J.g,b=M.Bodies.circle(x,y,g.r,{restitution:.35,friction:.15,frictionAir:.004,density:.002,angle:Math.random()*6});
+  M.Body.setVelocity(b,{x:(Math.random()-.5)*3,y:vy});
+  M.Composite.add(J.eng.world,b);J.bodies.push(b);
+  if(J.bodies.length>150){const old=J.bodies.shift();M.Composite.remove(J.eng.world,old)}
+}
+J.resize=force=>{
+  const w=J.cv.clientWidth,h=J.cv.clientHeight;if(!w||!h)return;
+  if(!force&&w===J.W&&Math.abs(h-J.H)<3)return;
+  J.dpr=Math.min(2,devicePixelRatio||1);J.W=w;J.H=h;
+  J.cv.width=Math.round(w*J.dpr);J.cv.height=Math.round(h*J.dpr);
+  jbuild();if(!M)J.g=jgeo();J.until=performance.now()+1500;J.run();
+};
+function jdraw(){
+  const {ctx,W,H,dpr,g}=J;if(!g)return;
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const path=()=>{ctx.beginPath();ctx.moveTo(g.jl,g.y0);ctx.lineTo(g.jl,g.jb-g.cr);ctx.quadraticCurveTo(g.jl,g.jb,g.jl+g.cr,g.jb);ctx.lineTo(g.jr-g.cr,g.jb);ctx.quadraticCurveTo(g.jr,g.jb,g.jr,g.jb-g.cr);ctx.lineTo(g.jr,g.y0)};
+  path();ctx.closePath();ctx.fillStyle='rgba(255,255,255,.5)';ctx.fill();
+  if(M&&J.eng){for(const b of J.bodies)coin(ctx,b.position.x,b.position.y,g.r,b.angle,1)}
+  else for(let k=0;k<J.coins&&k<150;k++){const p=pilePos(k,g);coin(ctx,p.x,p.y,g.r,k,1)}
+  path();ctx.lineWidth=2.5;ctx.strokeStyle='#101318';ctx.lineJoin='round';ctx.stroke();
+  ctx.beginPath();ctx.roundRect?ctx.roundRect(g.jl-7,g.y0-11,g.jr-g.jl+14,11,4):ctx.rect(g.jl-7,g.y0-11,g.jr-g.jl+14,11);ctx.fillStyle='#101318';ctx.fill();
+  ctx.beginPath();ctx.moveTo(g.jl+8,g.y0+14);ctx.lineTo(g.jl+8,g.jb-g.cr-6);ctx.lineWidth=3;ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineCap='round';ctx.stroke();
+}
+const jarOn=()=>isDeck()?(cur===3||cards[3].flight||performance.now()<J.until):J.vis;
+function jtick(){
+  if(!jarOn()){J.raf=0;jdraw();return}
+  if(M&&J.eng)M.Engine.update(J.eng,1000/60);
+  jdraw();J.raf=requestAnimationFrame(jtick);
+}
+J.run=()=>{if(!J.raf&&J.W)J.raf=requestAnimationFrame(jtick)};
+function jtotal(){$('#jarTot').textContent=fmt(J.cents)}
+$$('.buy').forEach(b=>b.addEventListener('click',()=>{
+  const p=+b.dataset.p,up=(100-p%100)%100,n=Math.max(1,Math.round(up/10));
+  J.cents+=up;jtotal();J.until=performance.now()+4500;J.run();
+  for(let k=0;k<n;k++)J.timers.push(setTimeout(()=>{
+    J.coins++;
+    if(M&&J.eng){const g=J.g;addBody(g.jl+g.r+Math.random()*(g.jr-g.jl-2*g.r),-g.r*2,2)}
+    J.until=performance.now()+3000;J.run();
+  },reduce?0:k*70));
+}));
+$('#jarReset').addEventListener('click',()=>{
+  J.timers.forEach(clearTimeout);J.timers=[];J.cents=0;J.coins=0;jtotal();
+  if(M&&J.eng){J.bodies.forEach(b=>M.Composite.remove(J.eng.world,b))}J.bodies=[];J.until=performance.now()+300;J.run();
+});
+new ResizeObserver(()=>J.resize()).observe(J.cv);
+new IntersectionObserver(es=>{J.vis=es[0].isIntersecting;J.run()}).observe(J.cv);
+
+/* ---------- card 5: calculator ---------- */
+(()=>{
+  const wk=$('#wk'),chg=$('#chg'),bars=$('#bars');let tm=0;
+  for(let i=0;i<12;i++)bars.appendChild(document.createElement('span'));
+  const upd=()=>{
+    const n=+wk.value,c=+chg.value,yr=n*52*c/100,mo=yr/12;
+    $('#wkv').textContent=n;$('#chgv').textContent=c+'¢';
+    $('#yr').textContent=fmt(Math.round(yr*100));$('#mo').textContent=fmt(Math.round(mo*100))+' a month';
+    [...bars.children].forEach((s,i)=>{s.style.height=((i+1)/12*100)+'%'});
+    clearTimeout(tm);tm=setTimeout(()=>{$('#yrSr').textContent=`${n} purchases a week at ${c} cents each is ${fmt(Math.round(yr*100))} a year.`},500);
+  };
+  wk.addEventListener('input',upd);chg.addEventListener('input',upd);upd();
+})();
+
+/* ---------- card 6: freeze ---------- */
+(()=>{
+  const sw=$('#freeze'),mini=$('#mini');
+  sw.addEventListener('click',()=>{const on=sw.getAttribute('aria-checked')!=='true';sw.setAttribute('aria-checked',on);mini.classList.toggle('frozen',on);$('#miniT').textContent=on?'Card frozen':'Card active'});
+})();
+
+/* ---------- card 8: faq ---------- */
+$$('.q').forEach(q=>q.addEventListener('click',()=>{
+  const on=q.getAttribute('aria-pressed')!=='true';q.setAttribute('aria-pressed',on);
+  $('.qf',q).setAttribute('aria-hidden',on);$('.qb',q).setAttribute('aria-hidden',!on);
+}));
+
+/* ---------- waitlist forms and coin spray ---------- */
+let joined=false;try{joined=localStorage.getItem('keel-joined')==='1'}catch(e){}
+const forms=$$('form[data-join]');
+function showJoined(focus){
+  forms.forEach(f=>{f.hidden=true;const t=$('.thanks',f.parentNode);t.hidden=false;if(focus===f)t.focus({preventScroll:true})});
+}
+function spray(from){
+  if(reduce)return;
+  const cv=$('#spray'),ctx=cv.getContext('2d'),dpr=Math.min(2,devicePixelRatio||1);
+  cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;
+  const r=from.getBoundingClientRect(),ox=r.left+r.width/2,oy=r.top+r.height/2,ps=[];
+  for(let i=0;i<90;i++){const a=-Math.PI/2+(Math.random()-.5)*2.2,v=500+Math.random()*900;
+    ps.push({x:ox,y:oy,vx:Math.cos(a)*v,vy:Math.sin(a)*v,r:7+Math.random()*7,a:Math.random()*6,va:(Math.random()-.5)*10,ph:Math.random()*6,t:0})}
+  let l=performance.now();
+  const step=n=>{const dt=Math.min(.032,(n-l)/1000);l=n;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,innerWidth,innerHeight);let alive=0;
+    for(const p of ps){p.t+=dt;p.vy+=1900*dt;p.vx*=1-.6*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.a+=p.va*dt;p.ph+=dt*9;
+      if(p.y<innerHeight+30&&p.t<3){alive++;coin(ctx,p.x,p.y,p.r,p.a,Math.max(.15,Math.abs(Math.cos(p.ph))))}}
+    if(alive)requestAnimationFrame(step);else{ctx.clearRect(0,0,innerWidth,innerHeight);cv.width=cv.height=0}};
+  requestAnimationFrame(step);
+}
+forms.forEach(f=>{
+  const input=$('input',f),msg=$('.msg',f);
+  input.addEventListener('input',()=>{input.removeAttribute('aria-invalid');msg.textContent='';msg.classList.remove('err')});
+  f.addEventListener('submit',e=>{
+    e.preventDefault();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(input.value.trim())){
+      msg.textContent='Enter an email like name@example.com.';msg.classList.add('err');input.setAttribute('aria-invalid','true');input.focus();return}
+    joined=true;try{localStorage.setItem('keel-joined','1')}catch(_){}
+    showJoined(f);
+    if(f.dataset.join==='final')spray($('button[type=submit]',f));
+  });
+});
+if(joined)showJoined();
+
+/* ---------- boot ---------- */
+const ok='PointerEvent' in window&&window.CSS&&CSS.supports('container-type','size')&&!/^#list/.test(location.hash);
+cards.forEach(c=>c.el.setAttribute('tabindex','-1'));
+if(ok){
+  setDeck(true);
+  if(!reduce)setTimeout(()=>{
+    if(touched||!isDeck()||cur!==0)return;
+    const c=cards[0];c.el.classList.add('live');c.vx=-380;c.vr=-9;springTo(c,0,0,0,()=>{clearT(c);render()});
+  },1600);
+}else{setDeck(false)}
+let rw=innerWidth,rh=innerHeight;
+addEventListener('resize',()=>{
+  if(innerWidth===rw&&Math.abs(innerHeight-rh)<160)return;
+  rw=innerWidth;rh=innerHeight;J.resize(true);
+});
+})();
+</script>
+
+</body>
+</html>
